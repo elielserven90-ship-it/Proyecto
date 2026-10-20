@@ -1,0 +1,78 @@
+// POS UPTPC — Esquema de base de datos (SQLite / Turso libSQL)
+// Los precios se almacenan en céntimos (Int) para evitar errores de redondeo.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String // hash scrypt: scrypt:<salt>:<hash>
+  name      String
+  role      String   @default("VENDEDOR") // ADMIN | VENDEDOR
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Product {
+  id         String     @id @default(cuid())
+  name       String
+  price      Int // céntimos
+  categoryId String?
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  active     Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  saleItems  SaleItem[]
+}
+
+model Sale {
+  number        Int        @id @default(autoincrement())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id])
+  customerName  String?
+  orderType     String     @default("LLEVAR") // SALON | LLEVAR
+  paymentMethod String // EFECTIVO | PUNTO | PAGO_MOVIL
+  paymentRef    String?
+  cashReceived  Int?
+  changeGiven   Int?
+  subtotal      Int // céntimos
+  taxRate       Int // % IVA aplicado (instantánea)
+  tax           Int // céntimos
+  total         Int // céntimos
+  status        String     @default("COMPLETADA") // COMPLETADA | ANULADA
+  createdAt     DateTime   @default(now())
+  items         SaleItem[]
+}
+
+model SaleItem {
+  id        String   @id @default(cuid())
+  saleId    Int
+  sale      Sale     @relation(fields: [saleId], references: [number], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name      String // snapshot del nombre
+  price     Int // céntimos (snapshot)
+  quantity  Int
+  subtotal  Int // céntimos
+}
+
+model Setting {
+  key   String @id
+  value String
+}
